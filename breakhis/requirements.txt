@@ -1,0 +1,15 @@
+torch>=2.1
+torchvision>=0.16
+timm>=0.9.16
+albumentations>=1.4.0
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+Pillow>=10.0
+matplotlib>=3.8
+seaborn>=0.13
+gradio>=4.20
+pyarrow>=14.0
+tqdm>=4.66
+jupyter>=1.0
+ipykernel>=6.29

@@ -27,3 +27,11 @@ kaggle.json
 Thumbs.db
 .vscode/
 .idea/
+
+# Large datasets and model checkpoints
+breakhis/data/
+data/
+*.zip
+breakhis/models/
+models/
+results/
