@@ -308,6 +308,7 @@ def train(cfg: TrainConfig) -> dict:
                 "val_pat_acc": va_pat,
                 "epoch": epoch,
             }, best_path)
+            print(f"  --> Đã lưu best.pt (val_pat_acc={best_pat_acc:.4f})")
         else:
             patience += 1
             if patience >= cfg.early_stop_patience:
@@ -315,7 +316,16 @@ def train(cfg: TrainConfig) -> dict:
                       f"(best val pat_acc={best_pat_acc:.3f})")
                 break
 
-    pd.DataFrame(history).to_csv(out_dir / "history.csv", index=False)
+        # Luôn tự động lưu checkpoint của epoch gần nhất và cập nhật history.csv
+        torch.save({
+            "state_dict": model.state_dict(),
+            "config": asdict(cfg),
+            "spec": asdict(spec),
+            "val_pat_acc": va_pat,
+            "best_pat_acc": best_pat_acc,
+            "epoch": epoch,
+        }, out_dir / "last.pt")
+        pd.DataFrame(history).to_csv(out_dir / "history.csv", index=False)
 
     # Final test eval with the best checkpoint.
     ckpt = torch.load(best_path, map_location=device)
