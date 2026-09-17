@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PneumoScan AI — Hệ Thống Hỗ Trợ Chẩn Đoán Viêm Phổi Từ X-Quang Ngực</title>
+    <meta name="description" content="Ứng dụng AI phân tích ảnh X-quang lồng ngực hỗ trợ phát hiện viêm phổi sử dụng ResNet18 Transfer Learning và bản đồ nhiệt Grad-CAM.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-background">
+        <div class="ambient-glow glow-1"></div>
+        <div class="ambient-glow glow-2"></div>
+    </div>
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-group">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        <circle cx="12" cy="12" r="9" stroke-opacity="0.3" />
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1 class="brand-title">PneumoScan <span class="badge-ai">AI</span></h1>
+                    <p class="brand-subtitle">ResNet18 Deep Learning &bull; Explainable Grad-CAM &bull; CT223H</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="system-status">
+                    <span class="status-indicator online"></span>
+                    <span class="status-label">Model: ResNet18 Pretrained (Best Ep.3)</span>
+                </div>
+                <button id="themeToggleBtn" class="btn-icon" title="Chuyển chế độ sáng / tối" aria-label="Toggle Theme">
+                    <svg id="themeIcon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="app-main">
+        <div class="main-grid">
+
+            <!-- LEFT COLUMN: INPUT & SAMPLES -->
+            <section class="card input-section">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <span class="card-step">01</span>
+                        <h2 class="card-title">Nạp Phim X-Quang Ngực</h2>
+                    </div>
+                    <span class="card-hint">PA / AP View (224×224 RGB)</span>
+                </div>
+
+                <!-- DRAG & DROP ZONE -->
+                <div id="dropZone" class="drop-zone">
+                    <input type="file" id="fileInput" accept="image/png, image/jpeg, image/jpg" class="file-input" hidden>
+                    <div class="drop-content">
+                        <div class="upload-icon-wrapper">
+                            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                        </div>
+                        <p class="drop-primary-text">Kéo thả ảnh X-quang vào đây</p>
+                        <p class="drop-secondary-text">hoặc <button type="button" id="browseBtn" class="btn-link">chọn tệp từ máy tính</button></p>
+                        <div class="drop-formats">Hỗ trợ: DICOM/JPG/PNG &bull; Tối đa 25MB</div>
+                    </div>
+                </div>
+
+                <!-- PRESET SAMPLES -->
+                <div class="samples-container">
+                    <div class="samples-title">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <span>Thử nghiệm nhanh với ca lâm sàng mẫu:</span>
+                    </div>
+                    <div class="samples-list">
+                        <button type="button" id="sampleNormalBtn" class="sample-btn" data-sample="normal">
+                            <div class="sample-badge normal-badge">Ca 1: Bình thường</div>
+                            <span class="sample-desc">Phổi sáng, không thâm nhiễm</span>
+                        </button>
+                        <button type="button" id="samplePneumoniaBtn" class="sample-btn" data-sample="pneumonia">
+                            <div class="sample-badge pneumonia-badge">Ca 2: Viêm phổi</div>
+                            <span class="sample-desc">Mờ thâm nhiễm thùy dưới</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PATIENT INFO (OPTIONAL FOR REPORT) -->
+                <div class="patient-meta-card">
+                    <div class="meta-header">
+                        <span class="meta-title">Thông tin bệnh nhân (In phiếu kết quả)</span>
+                    </div>
+                    <div class="meta-grid">
+                        <div class="form-group">
+                            <label for="patientNameInput">Họ và tên:</label>
+                            <input type="text" id="patientNameInput" placeholder="VD: Nguyễn Văn A" value="Nguyễn Văn A">
+                        </div>
+                        <div class="form-group">
+                            <label for="patientAgeInput">Tuổi / Giới tính:</label>
+                            <input type="text" id="patientAgeInput" placeholder="VD: 45 tuổi / Nam" value="42T / Nam">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT COLUMN: DIAGNOSTIC RESULTS & GRAD-CAM -->
+            <section class="card result-section">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <span class="card-step">02</span>
+                        <h2 class="card-title">Kết Quả Phân Tích & Grad-CAM</h2>
+                    </div>
+                    <div id="latencyBadge" class="latency-badge hidden">
+                        <span id="latencyValue">-- ms</span>
+                    </div>
+                </div>
+
+                <!-- EMPTY STATE -->
+                <div id="emptyState" class="empty-state">
+                    <div class="pulse-radar">
+                        <div class="radar-circle"></div>
+                        <div class="radar-icon">
+                            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3>Chưa có dữ liệu chẩn đoán</h3>
+                    <p>Hãy tải lên một ảnh X-quang hoặc click vào một trong 2 ca mẫu bên trái để hệ thống kích hoạt chẩn đoán AI.</p>
+                </div>
+
+                <!-- LOADING SPINNER -->
+                <div id="loadingState" class="loading-state hidden">
+                    <div class="medical-loader">
+                        <div class="spinner"></div>
+                    </div>
+                    <p class="loading-title">Đang quét phế trường & tính toán Grad-CAM...</p>
+                    <p class="loading-sub">ResNet18 Feature Maps &bull; Activation Layer 4</p>
+                </div>
+
+                <!-- RESULT CONTAINER (DISPLAYED AFTER INFERENCE) -->
+                <div id="resultContent" class="result-content hidden">
+
+                    <!-- DIAGNOSIS BANNER -->
+                    <div id="diagnosisBanner" class="diagnosis-banner normal">
+                        <div class="banner-icon" id="bannerIcon">
+                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <div class="banner-info">
+                            <div class="banner-top">
+                                <span class="diagnosis-tag">KẾT LUẬN AI:</span>
+                                <span id="diagnosisSeverity" class="severity-pill">Bình thường</span>
+                            </div>
+                            <h3 id="diagnosisTitle" class="diagnosis-title">NORMAL (KHÔNG VIÊM PHỔI)</h3>
+                        </div>
+                        <div class="banner-stat">
+                            <span class="stat-num" id="confidenceValue">98.5%</span>
+                            <span class="stat-label">Độ tin cậy</span>
+                        </div>
+                    </div>
+
+                    <!-- PROBABILITY BARS -->
+                    <div class="prob-section">
+                        <div class="prob-item">
+                            <div class="prob-labels">
+                                <span class="prob-name">Phổi Bình Thường (NORMAL)</span>
+                                <span id="normalPercent" class="prob-val font-mono">98.5%</span>
+                            </div>
+                            <div class="prob-bar-track">
+                                <div id="normalBar" class="prob-bar-fill normal-fill" style="width: 98.5%"></div>
+                            </div>
+                        </div>
+
+                        <div class="prob-item">
+                            <div class="prob-labels">
+                                <span class="prob-name">Viêm Phổi (PNEUMONIA)</span>
+                                <span id="pneumoniaPercent" class="prob-val font-mono">1.5%</span>
+                            </div>
+                            <div class="prob-bar-track">
+                                <div id="pneumoniaBar" class="prob-bar-fill pneumonia-fill" style="width: 1.5%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EXPLAINABLE AI / GRAD-CAM VIEWER -->
+                    <div class="xai-container">
+                        <div class="xai-header">
+                            <div class="xai-title-wrap">
+                                <span class="xai-badge">XAI</span>
+                                <h4 class="xai-title">Bản Đồ Nhiệt Vùng Tổn Thương (Grad-CAM)</h4>
+                            </div>
+                            <div class="view-toggles">
+                                <button type="button" class="toggle-tab active" data-view="side-by-side">Song Song</button>
+                                <button type="button" class="toggle-tab" data-view="gradcam-only">Chỉ Grad-CAM</button>
+                                <button type="button" class="toggle-tab" data-view="heatmap-only">Heatmap Thuần</button>
+                            </div>
+                        </div>
+
+                        <!-- IMAGE DISPLAY VIEW -->
+                        <div class="image-viewer-grid" id="imageViewer">
+                            <div class="image-card" id="cardOriginal">
+                                <div class="image-card-tag">Ảnh X-Quang Gốc</div>
+                                <img id="imgOriginal" src="" alt="Ảnh X-quang gốc" class="viewer-img">
+                            </div>
+                            <div class="image-card" id="cardGradCAM">
+                                <div class="image-card-tag highlight">Grad-CAM Overlay</div>
+                                <img id="imgGradCAM" src="" alt="Bản đồ nhiệt Grad-CAM" class="viewer-img">
+                            </div>
+                            <div class="image-card hidden" id="cardHeatmap">
+                                <div class="image-card-tag">Activation Heatmap</div>
+                                <img id="imgHeatmap" src="" alt="Activation Heatmap" class="viewer-img">
+                            </div>
+                        </div>
+
+                        <div class="xai-legend">
+                            <span class="legend-item"><span class="legend-color red"></span> Vùng kích hoạt cao (Mô hình tập trung chẩn đoán)</span>
+                            <span class="legend-item"><span class="legend-color blue"></span> Vùng kích hoạt thấp</span>
+                        </div>
+                    </div>
+
+                    <!-- CLINICAL RECOMMENDATION -->
+                    <div class="clinical-box">
+                        <div class="clinical-header">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <span>Khuyến nghị lâm sàng sơ bộ:</span>
+                        </div>
+                        <p id="recommendationText" class="clinical-text">--</p>
+                    </div>
+
+                    <!-- ACTION BUTTONS -->
+                    <div class="result-actions">
+                        <button type="button" id="printReportBtn" class="btn btn-primary">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                <rect x="6" y="14" width="12" height="8"></rect>
+                            </svg>
+                            <span>In Phiếu Kết Quả Chẩn Đoán</span>
+                        </button>
+                        <button type="button" id="resetBtn" class="btn btn-secondary">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                <path d="M3 3v5h5"></path>
+                            </svg>
+                            <span>Thực Hiện Ca Mới</span>
+                        </button>
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+    </main>
+
+    <!-- PRINTABLE REPORT TEMPLATE (Hidden on screen, visible when printing) -->
+    <div id="printableReport" class="printable-report">
+        <div class="report-header">
+            <div class="hospital-info">
+                <h2>TRUNG TÂM CHẨN ĐOÁN HÌNH ẢNH Y KHOA SỐ AI</h2>
+                <p>Đề tài CT223H — Nền tảng Trí tuệ Nhân tạo &bull; Phân loại Viêm phổi qua X-quang ngực</p>
+            </div>
+            <div class="report-code">
+                <p>Mã xét nghiệm: <strong>PNEUMO-2026-X</strong></p>
+                <p>Ngày thực hiện: <span id="reportDate">--/--/2026</span></p>
+            </div>
+        </div>
+
+        <div class="report-divider"></div>
+
+        <div class="patient-section">
+            <h3>I. THÔNG TIN BỆNH NHÂN</h3>
+            <table class="report-table">
+                <tr>
+                    <td><strong>Họ và tên:</strong> <span id="repPatientName">Nguyễn Văn A</span></td>
+                    <td><strong>Tuổi / Giới:</strong> <span id="repPatientAge">42 / Nam</span></td>
+                    <td><strong>Chỉ định:</strong> X-Quang Ngực Thẳng (PA View)</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="findings-section">
+            <h3>II. HÌNH ẢNH X-QUANG & PHÂN TÍCH GRAD-CAM TRÍ TUỆ NHÂN TẠO</h3>
+            <div class="report-images">
+                <div class="report-img-box">
+                    <p>Phim X-Quang Gốc</p>
+                    <img id="repImgOriginal" src="" alt="X-ray gốc">
+                </div>
+                <div class="report-img-box">
+                    <p>Bản Đồ Nhiệt Vùng Tổn Thương (Grad-CAM)</p>
+                    <img id="repImgGradCAM" src="" alt="Grad-CAM">
+                </div>
+            </div>
+        </div>
+
+        <div class="conclusion-section">
+            <h3>III. KẾT QUẢ PHÂN TÍCH MÔ HÌNH RESNET18</h3>
+            <div class="conclusion-box" id="repConclusionBox">
+                <p><strong>Chẩn đoán sơ bộ:</strong> <span id="repDiagnosis">--</span></p>
+                <p><strong>Xác suất phân loại:</strong> NORMAL: <span id="repProbNormal">--%</span> | PNEUMONIA: <span id="repProbPneumonia">--%</span></p>
+                <p><strong>Mức độ tin cậy AI:</strong> <span id="repConfidence">--%</span></p>
+                <p><strong>Ghi chú lâm sàng:</strong> <span id="repNotes">--</span></p>
+            </div>
+        </div>
+
+        <div class="report-footer">
+            <div class="disclaimer">
+                * Lưu ý: Kết quả phân tích do mô hình AI ResNet18 hỗ trợ chẩn đoán hình ảnh. Cần sự phê chuẩn cuối cùng của Bác sĩ Chuyên khoa Chẩn đoán Hình ảnh trước khi ra phác đồ điều trị.
+            </div>
+            <div class="signature">
+                <p>Bác sĩ / Kỹ thuật viên phụ trách</p>
+                <div class="sig-space"></div>
+                <p><strong>Hệ Thống PneumoScan AI</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
